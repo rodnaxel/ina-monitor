@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INA219 Monitor — 10 Гц</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 1.8rem;
+            color: #f8fafc;
+        }
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            margin-bottom: 25px;
+            font-size: 0.9rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #334155;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-2px); }
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            font-family: 'SF Mono', monospace;
+        }
+        .stat-unit {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-left: 4px;
+        }
+        .voltage { color: #38bdf8; }
+        .current { color: #fbbf24; }
+        .power { color: #f87171; }
+        .shunt { color: #a78bfa; }
+        
+        .chart-container {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #334155;
+        }
+        .chart-title {
+            font-size: 1rem;
+            margin-bottom: 15px;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .chart-wrapper { position: relative; height: 280px; }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: #334155;
+            border: 1px solid #475569;
+            color: #e2e8f0;
+            padding: 8px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #475569; }
+        .btn.active { background: #2563eb; border-color: #2563eb; }
+        
+        .status-bar {
+            text-align: center;
+            padding: 10px;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            margin-right: 6px;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        
+        .overflow-warning {
+            background: #7f1d1d;
+            color: #fecaca;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .overflow-warning.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ INA219 Мониторинг</h1>
+        <p class="subtitle">Raspberry Pi • I2C • 10 Гц • Реальное время</p>
+        
+        <div class="overflow-warning" id="overflowWarn">
+            ⚠️ Переполнение регистра! Увеличьте диапазон измерений.
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Напряжение питания (VIN+)</div>
+                <div class="stat-value voltage">
+                    <span id="supplyV">--</span><span class="stat-unit">V</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Напряжение нагрузки (VIN-)</div>
+                <div class="stat-value voltage">
+                    <span id="busV">--</span><span class="stat-unit">V</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Ток</div>
+                <div class="stat-value current">
+                    <span id="currentA">--</span><span class="stat-unit">A</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Мощность</div>
+                <div class="stat-value power">
+                    <span id="powerW">--</span><span class="stat-unit">W</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Шунт (V+ - V-)</div>
+                <div class="stat-value shunt">
+                    <span id="shuntV">--</span><span class="stat-unit">mV</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn active" onclick="setWindow(30)">30 сек</button>
+            <button class="btn" onclick="setWindow(60)">1 мин</button>
+            <button class="btn" onclick="setWindow(300)">5 мин</button>
+            <button class="btn" onclick="setWindow(0)">Все</button>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-title">📈 Напряжение и Ток</div>
+            <div class="chart-wrapper">
+                <canvas id="mainChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-title">📊 Мощность</div>
+            <div class="chart-wrapper">
+                <canvas id="powerChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <span class="status-dot"></span>
+            <span id="statusText">Подключено • Обновление каждые 100 мс</span>
+        </div>
+    </div>
+
+    <script>
+        const ctxMain = document.getElementById('mainChart').getContext('2d');
+        const ctxPower = document.getElementById('powerChart').getContext('2d');
+        
+        let windowSize = 30; // seconds of data to show
+        let allData = [];
+        
+        const mainChart = new Chart(ctxMain, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Напряжение (V)',
+                    data: [],
+                    borderColor: '#38bdf8',
+                    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    yAxisID: 'y'
+                }, {
+                    label: 'Ток (A)',
+                    data: [],
+                    borderColor: '#fbbf24',
+                    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { color: '#94a3b8' } }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#64748b', maxTicksLimit: 8 },
+                        grid: { color: '#334155' }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        ticks: { color: '#38bdf8' },
+                        grid: { color: '#334155' },
+                        title: { display: true, text: 'V', color: '#38bdf8' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        ticks: { color: '#fbbf24' },
+                        grid: { drawOnChartArea: false },
+                        title: { display: true, text: 'A', color: '#fbbf24' }
+                    }
+                }
+            }
+        });
+        
+        const powerChart = new Chart(ctxPower, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Мощность (W)',
+                    data: [],
+                    borderColor: '#f87171',
+                    backgroundColor: 'rgba(248, 113, 113, 0.15)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: { labels: { color: '#94a3b8' } }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#64748b', maxTicksLimit: 8 },
+                        grid: { color: '#334155' }
+                    },
+                    y: {
+                        ticks: { color: '#f87171' },
+                        grid: { color: '#334155' },
+                        title: { display: true, text: 'W', color: '#f87171' }
+                    }
+                }
+            }
+        });
+        
+        function setWindow(seconds) {
+            windowSize = seconds;
+            document.querySelectorAll('.controls .btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            updateCharts();
+        }
+        
+        function updateCharts() {
+            let data = allData;
+            if (windowSize > 0) {
+                const cutoff = Date.now()/1000 - windowSize;
+                data = allData.filter(d => d.timestamp > cutoff);
+            }
+            
+            const labels = data.map(d => {
+                const dt = new Date(d.timestamp * 1000);
+                return dt.toLocaleTimeString('ru-RU', {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+            });
+            
+            mainChart.data.labels = labels;
+            mainChart.data.datasets[0].data = data.map(d => d.supply_voltage);
+            mainChart.data.datasets[1].data = data.map(d => d.current);
+            mainChart.update('none');
+            
+            powerChart.data.labels = labels;
+            powerChart.data.datasets[0].data = data.map(d => d.power);
+            powerChart.update('none');
+        }
+        
+        async function fetchData() {
+            try {
+                const res = await fetch('/api/data');
+                const json = await res.json();
+                
+                if (json.latest) {
+                    document.getElementById('supplyV').textContent = json.latest.supply_voltage.toFixed(3);
+                    document.getElementById('busV').textContent = json.latest.bus_voltage.toFixed(3);
+                    document.getElementById('currentA').textContent = json.latest.current.toFixed(4);
+                    document.getElementById('powerW').textContent = json.latest.power.toFixed(4);
+                    document.getElementById('shuntV').textContent = (json.latest.shunt_voltage * 1000).toFixed(3);
+                }
+                
+                allData = json.data;
+                updateCharts();
+                
+                // Check for overflow (bus voltage near max or current near max)
+                if (json.latest && (json.latest.bus_voltage > 31.5 || Math.abs(json.latest.current) > 3.1)) {
+                    document.getElementById('overflowWarn').classList.add('show');
+                } else {
+                    document.getElementById('overflowWarn').classList.remove('show');
+                }
+                
+            } catch (e) {
+                document.getElementById('statusText').textContent = 'Ошибка подключения: ' + e.message;
+            }
+        }
+        
+        // Update at 5 Hz (UI refresh), data collected at 10 Hz
+        setInterval(fetchData, 200);
+    </script>
+</body>
+</html>
