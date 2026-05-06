@@ -1,5 +1,6 @@
 import smbus2
 import time
+import util
 
 
 INA219_ADDRESS = 0x40  # Default I2C address (A0=A1=GND)
@@ -12,7 +13,7 @@ REG_POWER = 0x03
 REG_CURRENT = 0x04
 REG_CALIBRATION = 0x05
 
-# Calibration for 32V / 2A range (0.1Ω shunt)
+# Calibration for 32V (max 26V) / 2A range (0.1 Ohm shunt)
 CALIBRATION_VALUE = 4096
 CURRENT_LSB = 0.0001  # A/bit (100 µA)
 POWER_LSB = 0.002     # W/bit (2 mW)
@@ -44,6 +45,7 @@ class INA219:
     def _configure(self):
         """Configure INA219 for continuous measurement"""
         # Config: 32V range, gain 8 (320mV), 12-bit ADC, continuous mode
+        
         # Bits: RST(15)=0, BRNG(13)=1 (32V), PG(11:12)=11 (gain 8), 
         #       BADC(7:10)=0011 (12bit), SADC(3:6)=0011 (12bit), MODE(0:2)=111 (cont shunt+bus)
         config = 0x399F  # 0011 1001 1001 1111
@@ -103,3 +105,43 @@ class INA219:
         except Exception as e:
             print(f"Read error: {e}")
             return None
+        
+        
+class FakeINA219:
+    """
+    Эмулятор INA219 для тестирования без реального железа.
+    Генерирует реалистичные данные с небольшим шумом и возможными скачками.
+    """
+    
+    def __init__(self, base_voltage=12.0, base_current=0.5, noise_level=0.02, shunt_resistance=0.1):
+        self.base_voltage = base_voltage            # Базовое напряжение (В)
+        self.base_current = base_current            # Базовый ток (А)
+        self.noise_level = noise_level              # Уровень шума (доля от значения)
+        self._shunt_resistance = shunt_resistance   # Сопротивление шунта (Ом)
+    
+    def read_all(self):
+        """Генерирует набор данных, имитирующий реальные измерения"""
+        # Генерация дрейфа
+        drift_v = util.drift(self.base_voltage, amplitude=0.05, frequency=0.5)
+        drift_c = util.drift(self.base_current, amplitude=0.1, frequency=0.3)
+        
+        # Случайный скачок тока
+        spike = util.spike(chance=0.02, min_spike=0.2, max_spike=1.0)
+        
+        # Генерация шума и итоговых значений
+        bus_voltage = util.noise(self.base_voltage + drift_v, self.noise_level)
+        current = util.noise(max(0, self.base_current + drift_c + spike), self.noise_level)
+        
+        # Расчёт производных величин
+        shunt_voltage = current * self._shunt_resistance
+        supply_voltage = bus_voltage + shunt_voltage
+        power = bus_voltage * current
+        
+        return {
+            'bus_voltage': round(bus_voltage, 4),
+            'shunt_voltage': round(shunt_voltage, 6),
+            'supply_voltage': round(supply_voltage, 4),
+            'current': round(current, 4),
+            'power': round(power, 4),
+            'timestamp': time.time()
+        }

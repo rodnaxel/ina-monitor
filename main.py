@@ -6,11 +6,8 @@ Real-time voltage/current/power visualization at 10 Hz
 import time
 
 from config import Config, Ina219Config
-
-from ina219 import INA219
-from fake_ina219 import FakeINA219
+from ina219 import INA219, FakeINA219
 from collector import DataCollector
-
 from app import create_app
 
 
