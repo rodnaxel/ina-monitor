@@ -59,19 +59,3 @@ class FakeINA219:
             'power': round(power, 4),
             'timestamp': time.time()
         }
-
-
-# ==================== Пример использования ====================
-if __name__ == '__main__':
-    sensor = FakeINA219(base_voltage=12.0, base_current=0.5)
-    
-    print("FakeINA219 test — 10 readings at 10 Hz")
-    print("-" * 50)
-    
-    for i in range(10):
-        data = sensor.read_all()
-        print(f"[{i+1:2d}] {data['supply_voltage']:6.3f}V | "
-              f"{data['current']:6.4f}A | "
-              f"{data['power']:6.4f}W | "
-              f"shunt={data['shunt_voltage']*1000:7.3f}mV")
-        time.sleep(0.1)

@@ -3,17 +3,36 @@
 INA219 Web Monitor for Raspberry Pi
 Real-time voltage/current/power visualization at 10 Hz
 """
-
 import time
 
-from app import app, collector, run_server
+from config import Config, Ina219Config
+
+from ina219 import INA219
+from fake_ina219 import FakeINA219
+from collector import DataCollector
+
+from app import create_app
 
 
 if __name__ == '__main__':
     print("INA219 Web Monitor")
-    print("Starting data collector at 10 Hz...")
+    print("Starting data collector...")
     
-    collector.start(sample_rate_hz=10)
+    if Config.DEBUG:
+        print("Data collector initialized in DEBUG mode with FakeINA219")
+        sensor = FakeINA219()
+    else:
+        print("Data collector initialized with real INA219 sensor")
+        sensor = INA219()
+
+    collector = DataCollector(
+        sensor, 
+        max_points=Ina219Config.MAX_POINTS
+    )
+    collector.start(sample_rate_hz=Ina219Config.SAMPLE_RATE_HZ)
+    
+    # Create Flask app
+    app = create_app(collector, debug=Config.DEBUG)
     
     # Wait for first reading
     time.sleep(0.5)
