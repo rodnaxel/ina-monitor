@@ -8,7 +8,7 @@ import time
 from config import Config, Ina219Config
 from ina219 import INA219, FakeINA219
 from collector import DataCollector
-from app import create_app
+from web.app import create_app
 
 
 if __name__ == '__main__':
