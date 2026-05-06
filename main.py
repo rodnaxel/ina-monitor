@@ -8,6 +8,7 @@ import time
 from config import Config, Ina219Config
 from ina219 import INA219, FakeINA219
 from collector import DataCollector
+from logger import DataLogger
 from web.app import create_app
 
 
@@ -22,8 +23,11 @@ if __name__ == '__main__':
         print("Data collector initialized with real INA219 sensor")
         sensor = INA219()
 
+    logger = DataLogger(Config.LOG_FILE) if Config.ENABLE_LOGGING else None
+    
     collector = DataCollector(
-        sensor, 
+        sensor,
+        logger=logger, 
         max_points=Ina219Config.MAX_POINTS
     )
     collector.start(sample_rate_hz=Ina219Config.SAMPLE_RATE_HZ)

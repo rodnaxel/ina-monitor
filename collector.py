@@ -4,8 +4,9 @@ import time
 
 
 class DataCollector:
-    def __init__(self, sensor, max_points=300):
+    def __init__(self, sensor, logger=None, max_points=300):
         self.sensor = sensor
+        self.logger = logger
 
         self.buffer = deque(maxlen=max_points)
         self.running = False
@@ -29,6 +30,11 @@ class DataCollector:
             if data:
                 with self.lock:
                     self.buffer.append(data)
+                    
+                # Если есть логгер, записать данные в файл
+                if self.logger:
+                    self.logger.log(data)
+            
             # Precise timing
             elapsed = time.time() - start
             sleep_time = max(0, interval - elapsed)

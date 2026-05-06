@@ -1,7 +1,9 @@
 class Config:
-    DEBUG = True         # Set to True to use FakeINA219 for testing without hardware         
+    DEBUG = True            # Set to True to use FakeINA219 for testing without hardware
+    ENABLE_LOGGING = False  
+    LOG_FILE = 'ina219_log.csv'           
     
     
 class Ina219Config:
     SAMPLE_RATE_HZ = 10  # Data collection rate in Hz
-    MAX_POINTS = 300     # Max data points to keep in memory (30 seconds at 10 Hz)
+    MAX_POINTS = 300     # Max data points to keep in memory
