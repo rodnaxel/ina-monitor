@@ -140,7 +140,7 @@ function updateCharts() {
 
 async function fetchData() {
   try {
-    const res = await fetch("/api/data");
+    const res = await fetch('/api/data');
     const json = await res.json();
 
     if (json.latest) {
