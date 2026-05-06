@@ -4,142 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>INA219 Monitor — 10 Гц</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: #0f172a;
-            color: #e2e8f0;
-            padding: 20px;
-        }
-        .container { max-width: 1200px; margin: 0 auto; }
-        h1 {
-            text-align: center;
-            margin-bottom: 10px;
-            font-size: 1.8rem;
-            color: #f8fafc;
-        }
-        .subtitle {
-            text-align: center;
-            color: #94a3b8;
-            margin-bottom: 25px;
-            font-size: 0.9rem;
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-        .stat-card {
-            background: #1e293b;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            border: 1px solid #334155;
-            transition: transform 0.2s;
-        }
-        .stat-card:hover { transform: translateY(-2px); }
-        .stat-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #94a3b8;
-            margin-bottom: 8px;
-        }
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            font-family: 'SF Mono', monospace;
-        }
-        .stat-unit {
-            font-size: 0.85rem;
-            color: #64748b;
-            margin-left: 4px;
-        }
-        .voltage { color: #38bdf8; }
-        .current { color: #fbbf24; }
-        .power { color: #f87171; }
-        .shunt { color: #a78bfa; }
-        
-        .chart-container {
-            background: #1e293b;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid #334155;
-        }
-        .chart-title {
-            font-size: 1rem;
-            margin-bottom: 15px;
-            color: #cbd5e1;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .chart-wrapper { position: relative; height: 280px; }
-        
-        .controls {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        .btn {
-            background: #334155;
-            border: 1px solid #475569;
-            color: #e2e8f0;
-            padding: 8px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: all 0.2s;
-        }
-        .btn:hover { background: #475569; }
-        .btn.active { background: #2563eb; border-color: #2563eb; }
-        
-        .status-bar {
-            text-align: center;
-            padding: 10px;
-            font-size: 0.8rem;
-            color: #64748b;
-        }
-        .status-dot {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #22c55e;
-            margin-right: 6px;
-            animation: pulse 1s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-        
-        .overflow-warning {
-            background: #7f1d1d;
-            color: #fecaca;
-            padding: 10px 20px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 15px;
-            display: none;
-        }
-        .overflow-warning.show { display: block; }
-    </style>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script> -->
+    <script src="{{ url_for('static', filename='chart.js-4.4.1/chart.umd.min.js') }}"></script>
+
 </head>
 <body>
     <div class="container">
         <h1>⚡ INA219 Мониторинг</h1>
-        <p class="subtitle">Raspberry Pi • I2C • 10 Гц • Реальное время</p>
+        <p class="subtitle">Raspberry Pi - I2C - 10 Гц</p>
         
         <div class="overflow-warning" id="overflowWarn">
-            ⚠️ Переполнение регистра! Увеличьте диапазон измерений.
+            Переполнение регистра! Увеличьте диапазон измерений.
         </div>
         
         <div class="stats-grid">
